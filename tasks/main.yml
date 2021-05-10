@@ -1,0 +1,54 @@
+---
+
+- name: Import Letencrypt vars
+  include_vars: letsencrypt-vars.yml
+  tags:
+    - regdomains
+    - getcerts
+
+- name: Install dependencies
+  apt:
+    name:
+      - python3-pip
+      - python3-virtualenv
+      - python3-setuptools
+    state: latest
+    update_cache: true
+
+- name: Create AWS DNS API config file
+  template:
+    src: awsconfig.j2
+    dest: /root/.aws/config
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Install certbot
+  pip:
+    name:
+    - cryptography
+    - requests
+    - certbot
+    - certbot-dns-route53
+    extra_args: --upgrade
+    executable: pip3
+
+- name: Check for certbot registration
+  find:
+    paths: /etc/letsencrypt
+    patterns: regr.json
+    recurse: yes
+  register: reg_exists
+
+- name: Register certbot
+  shell: 'certbot register --non-interactive --agree-tos -m esben.viskum@gmail.com'
+  when: reg_exists.matched == 0
+
+- name: Register domain and get certs
+  include_tasks: certupdate.yml
+  loop: "{{ letsencryptcerts }}"
+  when: item.active
+  tags:
+    - regdomains
+    - getcerts
+  

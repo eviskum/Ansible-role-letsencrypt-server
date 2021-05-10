@@ -1,0 +1,28 @@
+---
+
+- name: Register letsencrypt domains
+  shell: 'certbot certonly --dns-route53 --keep-until-expiring --non-interactive -d {{ item.domain }}'
+  tags: regdomains
+
+- name: Find cert files
+  find:
+    paths: "{{ letsencrypt_path }}/{{ item.domain }}"
+    recurse: no
+    patterns: "*.pem"
+    file_type: any
+  register: files_to_copy
+  tags:
+    - regdomains
+    - getcerts
+
+- name: Copy cert files
+  fetch:
+    src: "{{ certfile.path }}"
+    dest: "~/.ansible/certs/{{ item.domain }}/"
+    flat: yes
+  with_items: "{{ files_to_copy.files }}"
+  loop_control:
+    loop_var: certfile
+  tags:
+    - regdomains
+    - getcerts
